@@ -1,0 +1,317 @@
+#cloud-config
+package_update: true
+packages:
+  - nginx
+  - curl
+  - jq
+
+write_files:
+  - path: /var/www/html/index.html
+    permissions: '0644'
+    content: |
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Azure Cloud Infrastructure & Application</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+        <style>
+          :root {
+            --bg-color: #0b1120;
+            --card-bg: rgba(15, 23, 42, 0.75);
+            --card-border: rgba(56, 189, 248, 0.2);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --azure-blue: #0078d4;
+            --accent-cyan: #38bdf8;
+            --accent-green: #34d399;
+            --accent-purple: #a855f7;
+            --glass-glow: rgba(56, 189, 248, 0.15);
+          }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+              radial-gradient(at 0% 0%, rgba(0, 120, 212, 0.25) 0px, transparent 50%),
+              radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.2) 0px, transparent 50%),
+              radial-gradient(at 50% 50%, rgba(56, 189, 248, 0.1) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+          }
+          .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px var(--glass-glow);
+            animation: fadeIn 0.8s ease-out;
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+          }
+          .title-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+          }
+          .azure-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #0078d4, #38bdf8);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 120, 212, 0.4);
+          }
+          .azure-icon svg { width: 28px; height: 28px; fill: white; }
+          h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
+          .subtitle { color: var(--text-dim); font-size: 0.95rem; margin-top: 0.2rem; }
+          .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(52, 211, 153, 0.12);
+            color: var(--accent-green);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            padding: 0.4rem 0.9rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+          }
+          .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-green);
+            animation: pulse 2s infinite;
+          }
+          @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+          }
+          .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+          }
+          .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 1.25rem;
+            transition: all 0.2s ease;
+          }
+          .metric-card:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(56, 189, 248, 0.04);
+            transform: translateY(-2px);
+          }
+          .metric-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            margin-bottom: 0.4rem;
+          }
+          .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            word-break: break-all;
+          }
+          .resource-flow {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+          }
+          .flow-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent-cyan);
+          }
+          .flow-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+          }
+          .flow-node {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
+          .flow-arrow {
+            color: var(--text-dim);
+            font-size: 1rem;
+          }
+          .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 1.25rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+          }
+          .api-link {
+            color: var(--accent-cyan);
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(56, 189, 248, 0.1);
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+          }
+          .api-link:hover {
+            background: rgba(56, 189, 248, 0.2);
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="title-group">
+              <div class="azure-icon">
+                <svg viewBox="0 0 24 24"><path d="M13.05 4.24l-4.52 7.82 5.18 8.94h4.86l-7.73-13.34 2.21-3.42zM5.43 17.58l1.79-3.1 3.58 6.52H5.43v-.01zM10.87 3l-5.44 9.4 3.63 6.6 6.35-11.02L10.87 3z"/></svg>
+              </div>
+              <div>
+                <h1>Azure Application Workload</h1>
+                <div class="subtitle">Provisioned via Terraform Parent-Child Infrastructure Pipeline</div>
+              </div>
+            </div>
+            <div class="status-badge">
+              <span class="status-dot"></span>
+              APPLICATION ONLINE
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="metric-card">
+              <div class="metric-label">Inbound Public IP</div>
+              <div class="metric-value" id="public-ip">Loading...</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Private Subnet IP</div>
+              <div class="metric-value" id="private-ip">Loading...</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Virtual Machine Hostname</div>
+              <div class="metric-value" id="hostname">Loading...</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Outbound Egress NAT Gateway</div>
+              <div class="metric-value" id="nat-ip" style="color: var(--accent-green);">Verified Active</div>
+            </div>
+          </div>
+
+          <div class="resource-flow">
+            <div class="flow-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m10 15 5-3-5-3v6Z"/></svg>
+              Connected Infrastructure Architecture
+            </div>
+            <div class="flow-steps">
+              <div class="flow-node">🌐 Internet Client</div>
+              <span class="flow-arrow">➔</span>
+              <div class="flow-node">🔒 Network Security Group (Ports 80, 443, 8080, 22)</div>
+              <span class="flow-arrow">➔</span>
+              <div class="flow-node">📍 Standard Public IP</div>
+              <span class="flow-arrow">➔</span>
+              <div class="flow-node">🖥️ VM Network Interface (Subnet 10.0.1.0/24)</div>
+              <span class="flow-arrow">➔</span>
+              <div class="flow-node">🚀 Application Server</div>
+              <span class="flow-arrow">➔</span>
+              <div class="flow-node">⚡ NAT Gateway (Outbound Egress)</div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <div>Health API: <a class="api-link" href="/api/health" target="_blank">GET /api/health</a></div>
+            <div>Deployment: Terraform & GitHub Actions CI/CD</div>
+          </div>
+        </div>
+
+        <script>
+          fetch('/api/health')
+            .then(res => res.json())
+            .then(data => {
+              if (data.hostname) document.getElementById('hostname').innerText = data.hostname;
+              if (data.private_ip) document.getElementById('private-ip').innerText = data.private_ip;
+              if (data.client_ip) document.getElementById('public-ip').innerText = window.location.hostname;
+            })
+            .catch(() => {
+              document.getElementById('hostname').innerText = window.location.hostname;
+              document.getElementById('public-ip').innerText = window.location.hostname;
+            });
+        </script>
+      </body>
+      </html>
+
+  - path: /etc/nginx/sites-available/default
+    permissions: '0644'
+    content: |
+      server {
+        listen 80 default_server;
+        listen 8080 default_server;
+        listen [::]:80 default_server;
+        listen [::]:8080 default_server;
+
+        root /var/www/html;
+        index index.html;
+
+        server_name _;
+
+        location / {
+          try_files $uri $uri/ =404;
+        }
+
+        location /api/health {
+          default_type application/json;
+          return 200 '{"status":"healthy","service":"azure-application-pipeline","timestamp":"$time_iso8601","remote_addr":"$remote_addr"}';
+        }
+      }
+
+runcmd:
+  - systemctl restart nginx
+  - systemctl enable nginx

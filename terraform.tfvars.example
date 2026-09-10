@@ -1,0 +1,23 @@
+# Sample terraform.tfvars
+environment                       = "dev"
+location                          = "eastus"
+name_prefix                       = "infra"
+vnet_address_space                = ["10.0.0.0/16"]
+subnet_address_prefixes           = ["10.0.1.0/24"]
+vm_size                           = "Standard_B2s"
+admin_username                    = "azureuser"
+
+# Public IP & Inbound Internet Application Access
+enable_vm_public_ip               = true
+vm_domain_name_label              = "myapp-dev-eastus"   # Resolves to myapp-dev-eastus.eastus.cloudapp.azure.com
+allowed_ssh_source_address_prefix = "*"
+allowed_app_source_address_prefix = "*"
+application_port                  = "8080"
+install_sample_application        = true
+
+# Optional custom tags:
+tags = {
+  ManagedBy   = "Terraform"
+  Project     = "Azure-Infra-Pipeline"
+  Environment = "dev"
+}

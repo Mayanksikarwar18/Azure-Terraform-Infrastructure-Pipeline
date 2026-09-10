@@ -1,0 +1,212 @@
+# Azure Terraform Infrastructure Pipeline (Parent-Child Modules & GitHub Actions)
+
+A complete, production-ready Infrastructure as Code (IaC) project designed to provision core Azure networking and compute infrastructure using Terraform with a **Parent-Child module architecture**, orchestrated via **GitHub Actions CI/CD**.
+
+---
+
+## 🏗️ Architecture & Resources
+
+This project provisions the following Azure resources in a modular parent-child hierarchy:
+
+1. **Resource Group**: Central management container for all provisioned services.
+2. **Virtual Network (VNet)**: Isolated address space (`10.0.0.0/16` by default).
+3. **Subnet**: Dedicated workload subnet (`10.0.1.0/24`).
+4. **NAT Gateway**:
+   - Standard Public IP allocated to the NAT Gateway.
+   - NAT Gateway associated with the subnet, enabling secure, outbound-only internet connectivity for internal workloads.
+5. **VM Public IP**:
+   - Dedicated Standard SKU Static Public IP attached to the VM Network Interface.
+   - Optional DNS prefix configuration (`<label>.<region>.cloudapp.azure.com`).
+6. **Network Security Group (NSG)**:
+   - Security rules for SSH (port 22), HTTP (port 80), HTTPS (port 443), and custom application ports (port 8080).
+   - Associated with the subnet and network interface.
+7. **Network Interface (NIC)**:
+   - Private IP assigned from the subnet and attached to the VM Public IP.
+   - Tied to the Network Security Group.
+8. **Virtual Machine (Linux) & Application Bootstrapping**:
+   - Ubuntu 22.04 LTS Gen2 instance (`Standard_B2s`).
+   - SSH Key management (can auto-generate RSA key pair or accept an existing SSH public key).
+   - Cloud-init script automatically boots Nginx and runs an application status dashboard listening on ports 80 & 8080, fully integrated with Azure infrastructure.
+
+```
+                 +-------------------------------------------------------------+
+                 |                   Azure Resource Group                      |
+                 |                                                             |
+                 |   +-----------------------------------------------------+   |
+                 |   |                   Virtual Network                   |   |
+                 |   |                                                     |   |
+                 |   |   +---------------------------------------------+   |   |
+                 |   |   |                   Subnet                    |   |   |
+                 |   |   |                                             |   |   |
+                 |   |   |   +----------------+   +----------------+   |   |   |
+                 |   |   |   |  Linux VM & App|   |  NAT Gateway   |   |   |   |
+                 |   |   |   |  (Ubuntu 22.04)|   |  & Public IP   |   |   |   |
+                 |   |   |   +--------+-------+   +--------+-------+   |   |   |
+                 |   |   |            |                    |           |   |   |
+                 |   |   |      [VM Public IP]        [Outbound]       |   |   |
+                 |   |   |      [Private NIC ]             |           |   |   |
+                 |   |   |            |                    |           |   |   |
+                 |   |   |            v                    v           |   |   |
+                 |   |   |     [NSG: 80,443,8080,22]  [ Internet ]     |   |   |
+                 |   |   |            |                                |   |   |
+                 |   |   |            v                                |   |   |
+                 |   |   |     [Inbound Traffic]                       |   |   |
+                 |   |   +---------------------------------------------+   |   |
+                 |   +-----------------------------------------------------+   |
+                 +-------------------------------------------------------------+
+```
+
+---
+
+## 📂 Repository Layout
+
+```
+azure-terraform-infra-pipeline/
+├── .github/
+│   └── workflows/
+│       ├── terraform-ci.yml           # Pull Request workflow: fmt, init, validate, plan
+│       └── terraform-cd.yml           # Main workflow: automated plan & apply on push or dispatch
+├── modules/                           # Reusable Child Modules
+│   ├── resource_group/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── virtual_network/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── subnet/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── public_ip/                     # VM Standard Public IP module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── nat_gateway/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── network_security_group/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── network_interface/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   └── virtual_machine/
+│       ├── main.tf
+│       ├── variables.tf
+│       └── outputs.tf
+├── templates/
+│   └── cloud-init.yaml                # Application bootstrap script for VM
+├── main.tf                            # Parent / Root Module calling child modules
+├── variables.tf                       # Root variable declarations
+├── outputs.tf                         # Root output values (VM Public IP, Application URL)
+├── providers.tf                       # Terraform & AzureRM provider configuration
+├── backend.tf                         # Azure Blob remote state backend definition
+├── terraform.tfvars.example           # Example parameter values
+├── setup-azure-prerequisites.ps1      # Bootstrap script for Azure Storage & Service Principal
+├── .gitignore                         # Git ignore rules for Terraform & secrets
+└── README.md                          # Documentation
+```
+
+---
+
+## 🚀 Quickstart: Step-by-Step Deployment
+
+### Step 1: Bootstrap Azure Prerequisites (Automated)
+
+Run the included PowerShell script to create the Azure Remote State Storage and the Service Principal for GitHub Actions:
+
+```powershell
+# Open PowerShell in the repository root:
+.\setup-azure-prerequisites.ps1
+```
+
+The script will:
+1. Create a Resource Group for Terraform State (`rg-tfstate-pipeline`).
+2. Create an encrypted Storage Account (e.g. `sttfstate<random>`).
+3. Create a Blob Container (`tfstate`).
+4. Create an Azure Service Principal (`sp-terraform-github-pipeline`) with `Contributor` permissions.
+5. Print out the exact GitHub Secrets to configure.
+
+---
+
+### Step 2: Configure GitHub Repository Secrets
+
+In your GitHub repository, go to:
+**Settings** ➔ **Secrets and variables** ➔ **Actions** ➔ **New repository secret**
+
+Add the following 7 secrets:
+
+| Secret Name | Value Description |
+| :--- | :--- |
+| `AZURE_CLIENT_ID` | Service Principal Application ID (`appId`) |
+| `AZURE_CLIENT_SECRET` | Service Principal Password (`password`) |
+| `AZURE_SUBSCRIPTION_ID` | Azure Subscription ID |
+| `AZURE_TENANT_ID` | Azure Entra ID Tenant ID |
+| `TF_STATE_RESOURCE_GROUP_NAME` | Resource Group name (`rg-tfstate-pipeline`) |
+| `TF_STATE_STORAGE_ACCOUNT_NAME` | Storage account name output from script |
+| `TF_STATE_CONTAINER_NAME` | Container name (`tfstate`) |
+
+---
+
+### Step 3: Push Repository to GitHub
+
+Create a new repository on GitHub, then run:
+
+```bash
+git remote add origin https://github.com/<YOUR-USERNAME>/<YOUR-REPO-NAME>.git
+git branch -M main
+git push -u origin main
+```
+
+---
+
+### Step 4: Run CI/CD Pipeline in GitHub Actions
+
+Once pushed to `main`:
+1. Navigate to the **Actions** tab in your GitHub repository.
+2. The **Terraform CD (Apply Infrastructure)** workflow triggers automatically on push to `main`.
+3. You can also trigger it manually under **Actions** ➔ **Terraform CD** ➔ **Run workflow** (Options: `plan`, `apply`, `destroy`).
+4. Any Pull Requests will automatically trigger the **Terraform CI (Validate & Plan)** workflow to run formatting, validation, and a speculative plan.
+
+---
+
+## 🌐 Accessing the Application
+
+Once Terraform finishes applying, check the outputs:
+
+```bash
+Outputs:
+
+application_url        = "http://20.102.x.x"
+vm_public_ip           = "20.102.x.x"
+vm_fqdn                = "myapp-dev-eastus.eastus.cloudapp.azure.com"
+ssh_connection_command = "ssh azureuser@20.102.x.x"
+```
+
+Open `application_url` directly in your browser to view the application status dashboard and health endpoint (`/api/health`).
+
+---
+
+## 💻 Local Execution (Optional)
+
+If you wish to run Terraform locally using your authenticated Azure CLI session:
+
+```bash
+# 1. Login to Azure
+az login
+
+# 2. Initialize with local state (or configure backend flags)
+terraform init -backend=false
+
+# 3. Create your terraform.tfvars
+cp terraform.tfvars.example terraform.tfvars
+
+# 4. Plan and Apply
+terraform plan
+terraform apply
+```
