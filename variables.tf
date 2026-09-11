@@ -7,8 +7,9 @@ variable "environment" {
 variable "location" {
   description = "Azure region for resource deployment"
   type        = string
-  default     = "eastus"
+  default     = "centralindia"
 }
+
 
 variable "name_prefix" {
   description = "Prefix prepended to resource names"

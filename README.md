@@ -185,7 +185,7 @@ Outputs:
 
 application_url        = "http://20.102.x.x"
 vm_public_ip           = "20.102.x.x"
-vm_fqdn                = "myapp-dev-eastus.eastus.cloudapp.azure.com"
+vm_fqdn                = "myapp-dev-centralindia.centralindia.cloudapp.azure.com"
 ssh_connection_command = "ssh azureuser@20.102.x.x"
 ```
 
