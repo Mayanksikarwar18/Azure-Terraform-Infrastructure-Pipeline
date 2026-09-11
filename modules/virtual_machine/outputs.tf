@@ -13,13 +13,3 @@ output "admin_username" {
   value       = azurerm_linux_virtual_machine.vm.admin_username
 }
 
-output "tls_private_key_pem" {
-  description = "The generated private key (deprecated, password auth used)"
-  value       = null
-  sensitive   = true
-}
-
-output "tls_public_key_openssh" {
-  description = "The generated public key (deprecated, password auth used)"
-  value       = null
-}

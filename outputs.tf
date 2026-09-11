@@ -90,8 +90,3 @@ output "vm_admin_username" {
   value       = module.virtual_machine.admin_username
 }
 
-output "ssh_private_key_pem" {
-  description = "Generated private SSH key (only populated if auto-generated key was used)"
-  value       = module.virtual_machine.tls_private_key_pem
-  sensitive   = true
-}

@@ -63,11 +63,12 @@ jobs:
       # 2. FORMATTING & LINTING (terraform fmt, TFLint)
       # =========================================================================
 
-      # Setup Terraform CLI
+      # Setup Terraform CLI (wrapper disabled to prevent pipe/stream crashes on show/plan)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.5"
+          terraform_wrapper: false
 
       # Terraform native format check
       - name: Terraform Format Check
@@ -99,12 +100,14 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      # Terraform Plan (Generate binary plan and text summary)
+      # Terraform Plan (Generate binary plan)
       - name: Terraform Plan
-        id: plan
-        run: |
-          terraform plan -no-color -out=tfplan
-          terraform show -no-color tfplan > tfplan.txt
+        run: terraform plan -no-color -out=tfplan
+
+      # Generate Plan Text Summary
+      - name: Generate Plan Summary
+        run: terraform show -no-color tfplan > tfplan.txt
+
 
       # =========================================================================
       # 4. ARTIFACT STORAGE & REVIEWER SUMMARY
