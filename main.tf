@@ -53,12 +53,14 @@ module "nat_gateway" {
 
 # 5. Network Security Group Module (SSH, HTTP, HTTPS, Application Port)
 module "network_security_group" {
-  source              = "./modules/network_security_group"
-  name                = "nsg-${local.name_prefix}"
-  location            = module.resource_group.location
-  resource_group_name = module.resource_group.name
-  subnet_id           = module.subnet.id
-  tags                = local.common_tags
+  source                = "./modules/network_security_group"
+  name                  = "nsg-${local.name_prefix}"
+  location              = module.resource_group.location
+  resource_group_name   = module.resource_group.name
+  subnet_id             = module.subnet.id
+  associate_with_subnet = true
+  tags                  = local.common_tags
+
 
   security_rules = [
     {
@@ -125,14 +127,16 @@ module "public_ip" {
 
 # 7. Network Interface Module
 module "network_interface" {
-  source                    = "./modules/network_interface"
-  name                      = "nic-${local.name_prefix}"
-  location                  = module.resource_group.location
-  resource_group_name       = module.resource_group.name
-  subnet_id                 = module.subnet.id
-  network_security_group_id = module.network_security_group.id
-  public_ip_address_id      = var.enable_vm_public_ip ? module.public_ip[0].id : null
-  tags                      = local.common_tags
+  source                                = "./modules/network_interface"
+  name                                  = "nic-${local.name_prefix}"
+  location                              = module.resource_group.location
+  resource_group_name                   = module.resource_group.name
+  subnet_id                             = module.subnet.id
+  network_security_group_id             = module.network_security_group.id
+  associate_with_network_security_group = true
+  public_ip_address_id                  = var.enable_vm_public_ip ? module.public_ip[0].id : null
+  tags                                  = local.common_tags
+
 }
 
 # 8. Virtual Machine Module

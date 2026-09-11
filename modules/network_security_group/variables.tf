@@ -19,6 +19,13 @@ variable "subnet_id" {
   default     = null
 }
 
+variable "associate_with_subnet" {
+  description = "Whether to create an association between the NSG and subnet_id"
+  type        = bool
+  default     = true
+}
+
+
 variable "security_rules" {
   description = "List of security rules to apply to the network security group"
   type = list(object({

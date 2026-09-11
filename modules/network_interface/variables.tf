@@ -36,6 +36,13 @@ variable "network_security_group_id" {
   default     = null
 }
 
+variable "associate_with_network_security_group" {
+  description = "Whether to associate the NIC with a Network Security Group"
+  type        = bool
+  default     = true
+}
+
+
 variable "public_ip_address_id" {
   description = "Optional ID of a Public IP address to associate with this NIC"
   type        = string
