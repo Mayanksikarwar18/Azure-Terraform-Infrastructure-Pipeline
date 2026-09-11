@@ -120,10 +120,11 @@ module "nat_gateway" {
 
 # 6. Public IP Module for Virtual Machine (Inbound Internet Access)
 module "public_ip" {
-  count               = var.enable_vm_public_ip ? 1 : 0
-  source              = "./modules/public_ip"
-  name                = "pip-vm-${local.name_prefix}"
-  location            = module.resource_group.location
+  count    = var.enable_vm_public_ip ? 1 : 0
+  source   = "./modules/public_ip"
+  name     = "pip-${local.name_prefix}-vm"
+  location = module.resource_group.location
+
   resource_group_name = module.resource_group.name
   domain_name_label   = var.vm_domain_name_label
   tags                = local.common_tags
