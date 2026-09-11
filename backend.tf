@@ -3,7 +3,7 @@
 terraform {
   backend "azurerm" {
     resource_group_name  = "rg-tfstate-pipeline"
-    storage_account_name = "sttfstatepipeline" # Replace with your Azure Storage Account name
+    storage_account_name = "sttfstatepipeline109"
     container_name       = "tfstate"
     key                  = "terraform.tfstate"
   }
