@@ -53,11 +53,6 @@ variable "admin_password" {
   sensitive   = true
 }
 
-variable "ssh_public_key" {
-  description = "Optional SSH public key string for the VM. If null and admin_password is null, a key pair is generated automatically."
-  type        = string
-  default     = null
-}
 
 variable "allowed_ssh_source_address_prefix" {
   description = "Source IP/CIDR allowed to connect to SSH (port 22)"

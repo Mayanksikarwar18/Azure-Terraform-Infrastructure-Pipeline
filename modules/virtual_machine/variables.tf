@@ -32,12 +32,6 @@ variable "admin_password" {
   sensitive   = true
 }
 
-variable "ssh_public_key" {
-  description = "The SSH public key text. If null and admin_password is null, a new key pair will be generated."
-  type        = string
-  default     = null
-}
-
 variable "network_interface_ids" {
   description = "A list of Network Interface IDs to attach to this Virtual Machine"
   type        = list(string)
