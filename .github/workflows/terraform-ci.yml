@@ -155,28 +155,30 @@ jobs:
               ? planOutput.substring(0, maxLen) + '\n...[Output truncated due to character limit]'
               : planOutput;
 
-            const body = `### Terraform CI Quality & Speculative Plan Checks 🛡️
-
-| Tool | Category | Status |
-| :--- | :--- | :---: |
-| 🔒 **TruffleHog** | Secret Scan | ✅ Passed |
-| 🛡️ **tfsec** | Security & Secret Scan | ✅ Passed |
-| 🔍 **Checkov** | IaC Security & Secret Scan | ✅ Passed |
-| 🖌️ **terraform fmt** | Code Formatting | ✅ Passed |
-| 📐 **TFLint** | Linter & Best Practices | ✅ Passed |
-| ⚙️ **terraform validate** | Syntax Validation | ✅ Passed |
-| 📦 **Plan Artifact** | Storage | ✅ Stored (\`tfplan\`) |
-
-<details>
-<summary>📋 Click to view Terraform Plan Details</summary>
-
-\`\`\`terraform
-${truncatedPlan}
-\`\`\`
-
-</details>
-
-*Automated check by CI workflow for commit \`${context.sha.substring(0, 7)}\`.*`;
+            const body = [
+              '### Terraform CI Quality & Speculative Plan Checks 🛡️',
+              '',
+              '| Tool | Category | Status |',
+              '| :--- | :--- | :---: |',
+              '| 🔒 **TruffleHog** | Secret Scan | ✅ Passed |',
+              '| 🛡️ **tfsec** | Security & Secret Scan | ✅ Passed |',
+              '| 🔍 **Checkov** | IaC Security & Secret Scan | ✅ Passed |',
+              '| 🖌️ **terraform fmt** | Code Formatting | ✅ Passed |',
+              '| 📐 **TFLint** | Linter & Best Practices | ✅ Passed |',
+              '| ⚙️ **terraform validate** | Syntax Validation | ✅ Passed |',
+              '| 📦 **Plan Artifact** | Storage | ✅ Stored (`tfplan`) |',
+              '',
+              '<details>',
+              '<summary>📋 Click to view Terraform Plan Details</summary>',
+              '',
+              '```terraform',
+              truncatedPlan,
+              '```',
+              '',
+              '</details>',
+              '',
+              `*Automated check by CI workflow for commit \`${context.sha.substring(0, 7)}\`.*`
+            ].join('\n');
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
