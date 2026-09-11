@@ -137,6 +137,10 @@ module "network_interface" {
 
 # 8. Virtual Machine Module
 module "virtual_machine" {
+  #checkov:skip=CKV_AZURE_1:Password authentication chosen for project
+  #checkov:skip=CKV_AZURE_149:Password authentication chosen for project
+  #checkov:skip=CKV_AZURE_178:Password authentication chosen for project
+  #checkov:skip=CKV_AZURE_50:Virtual Machine extensions are disabled
   source                = "./modules/virtual_machine"
   name                  = "vm-${local.name_prefix}"
   location              = module.resource_group.location

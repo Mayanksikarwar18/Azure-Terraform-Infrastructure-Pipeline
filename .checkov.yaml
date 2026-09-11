@@ -2,3 +2,6 @@
 skip-check:
   - CKV_AZURE_50   # Virtual Machine extensions are not installed / allowed
   - CKV2_AZURE_31  # Subnet NSG is associated via network_security_group module
+  - CKV_AZURE_1    # Password authentication explicitly chosen over SSH
+  - CKV_AZURE_149  # Password authentication explicitly chosen over SSH
+  - CKV_AZURE_178  # Password authentication explicitly chosen over SSH

@@ -10,6 +10,9 @@ terraform {
 
 resource "azurerm_linux_virtual_machine" "vm" {
   #checkov:skip=CKV_AZURE_50:Virtual Machine extensions are disabled
+  #checkov:skip=CKV_AZURE_1:Password authentication chosen for project
+  #checkov:skip=CKV_AZURE_149:Password authentication chosen for project
+  #checkov:skip=CKV_AZURE_178:Password authentication chosen for project
   name                            = var.name
   resource_group_name             = var.resource_group_name
   location                        = var.location
