@@ -1,13 +1,10 @@
 # Terraform Remote State Configuration
-# Stored in Azure Blob Storage
-# Values can be passed via command line flags (-backend-config) or GitHub Actions secrets
-
+# Stored in manually created Azure Blob Storage
 terraform {
   backend "azurerm" {
-    # Configured dynamically via -backend-config arguments during 'terraform init':
-    # resource_group_name  = "rg-terraform-state"
-    # storage_account_name = "<storage_account_name>"
-    # container_name       = "tfstate"
-    # key                  = "infra.terraform.tfstate"
+    resource_group_name  = "rg-tfstate-pipeline"
+    storage_account_name = "sttfstatepipeline" # Replace with your Azure Storage Account name
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
   }
 }

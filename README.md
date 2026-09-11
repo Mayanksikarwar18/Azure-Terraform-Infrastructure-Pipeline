@@ -107,7 +107,7 @@ azure-terraform-infra-pipeline/
 ├── providers.tf                       # Terraform & AzureRM provider configuration
 ├── backend.tf                         # Azure Blob remote state backend definition
 ├── terraform.tfvars.example           # Example parameter values
-├── setup-azure-prerequisites.ps1      # Bootstrap script for Azure Storage & Service Principal
+├── .tflint.hcl                        # TFLint rules and module configuration
 ├── .gitignore                         # Git ignore rules for Terraform & secrets
 └── README.md                          # Documentation
 ```
@@ -116,40 +116,40 @@ azure-terraform-infra-pipeline/
 
 ## 🚀 Quickstart: Step-by-Step Deployment
 
-### Step 1: Bootstrap Azure Prerequisites (Automated)
+### Step 1: Create Backend Storage Account in Azure & Update `backend.tf`
 
-Run the included PowerShell script to create the Azure Remote State Storage and the Service Principal for GitHub Actions:
-
-```powershell
-# Open PowerShell in the repository root:
-.\setup-azure-prerequisites.ps1
-```
-
-The script will:
-1. Create a Resource Group for Terraform State (`rg-tfstate-pipeline`).
-2. Create an encrypted Storage Account (e.g. `sttfstate<random>`).
-3. Create a Blob Container (`tfstate`).
-4. Create an Azure Service Principal (`sp-terraform-github-pipeline`) with `Contributor` permissions.
-5. Print out the exact GitHub Secrets to configure.
+Create your remote state storage manually in the Azure Portal or via Azure CLI:
+1. Create a Resource Group (e.g. `rg-tfstate-pipeline`).
+2. Create a Storage Account (e.g. `sttfstatepipeline`).
+3. Create a Blob Container named `tfstate`.
+4. Update [backend.tf](file:///c:/Users/mayan/.gemini/antigravity/scratch/azure-terraform-infra-pipeline/backend.tf) with your storage account details:
+   ```hcl
+   terraform {
+     backend "azurerm" {
+       resource_group_name  = "rg-tfstate-pipeline"
+       storage_account_name = "<YOUR_STORAGE_ACCOUNT_NAME>"
+       container_name       = "tfstate"
+       key                  = "terraform.tfstate"
+     }
+   }
+   ```
 
 ---
 
-### Step 2: Configure GitHub Repository Secrets
+### Step 2: Configure GitHub Repository Secrets (App Registration)
 
-In your GitHub repository, go to:
+Create an App Registration / Service Principal with `Contributor` role in Azure.
+In your GitHub repository, navigate to:
 **Settings** ➔ **Secrets and variables** ➔ **Actions** ➔ **New repository secret**
 
-Add the following 7 secrets:
+Add the 4 authentication secrets:
 
 | Secret Name | Value Description |
 | :--- | :--- |
-| `AZURE_CLIENT_ID` | Service Principal Application ID (`appId`) |
-| `AZURE_CLIENT_SECRET` | Service Principal Password (`password`) |
+| `AZURE_CLIENT_ID` | App Registration Client ID (`appId`) |
+| `AZURE_CLIENT_SECRET` | App Registration Client Secret / Password |
 | `AZURE_SUBSCRIPTION_ID` | Azure Subscription ID |
-| `AZURE_TENANT_ID` | Azure Entra ID Tenant ID |
-| `TF_STATE_RESOURCE_GROUP_NAME` | Resource Group name (`rg-tfstate-pipeline`) |
-| `TF_STATE_STORAGE_ACCOUNT_NAME` | Storage account name output from script |
-| `TF_STATE_CONTAINER_NAME` | Container name (`tfstate`) |
+| `AZURE_TENANT_ID` | Azure Entra ID / Tenant ID |
 
 ---
 
