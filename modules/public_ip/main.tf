@@ -14,6 +14,7 @@ resource "azurerm_public_ip" "pip" {
   resource_group_name = var.resource_group_name
   allocation_method   = var.allocation_method
   sku                 = var.sku
-  domain_name_label   = var.domain_name_label
+  domain_name_label   = var.domain_name_label != null && var.domain_name_label != "" ? var.domain_name_label : null
   tags                = var.tags
+
 }

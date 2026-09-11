@@ -37,21 +37,10 @@ module "subnet" {
   resource_group_name  = module.resource_group.name
   virtual_network_name = module.virtual_network.name
   address_prefixes     = var.subnet_address_prefixes
+  depends_on           = [module.virtual_network]
 }
 
-# 4. NAT Gateway Module (Standard Public IP + NAT Gateway associated with Subnet for Outbound Egress)
-module "nat_gateway" {
-  source                  = "./modules/nat_gateway"
-  name                    = "natgw-${local.name_prefix}"
-  public_ip_name          = "pip-natgw-${local.name_prefix}"
-  location                = module.resource_group.location
-  resource_group_name     = module.resource_group.name
-  subnet_id               = module.subnet.id
-  idle_timeout_in_minutes = 4
-  tags                    = local.common_tags
-}
-
-# 5. Network Security Group Module (SSH, HTTP, HTTPS, Application Port)
+# 4. Network Security Group Module (SSH, HTTP, HTTPS, Application Port)
 module "network_security_group" {
   source                = "./modules/network_security_group"
   name                  = "nsg-${local.name_prefix}"
@@ -60,6 +49,8 @@ module "network_security_group" {
   subnet_id             = module.subnet.id
   associate_with_subnet = true
   tags                  = local.common_tags
+  depends_on            = [module.subnet]
+
 
 
   security_rules = [
@@ -114,6 +105,19 @@ module "network_security_group" {
   ]
 }
 
+# 5. NAT Gateway Module (Standard Public IP + NAT Gateway associated with Subnet for Outbound Egress)
+module "nat_gateway" {
+  source                  = "./modules/nat_gateway"
+  name                    = "natgw-${local.name_prefix}"
+  public_ip_name          = "pip-natgw-${local.name_prefix}"
+  location                = module.resource_group.location
+  resource_group_name     = module.resource_group.name
+  subnet_id               = module.subnet.id
+  idle_timeout_in_minutes = 4
+  tags                    = local.common_tags
+  depends_on              = [module.subnet, module.network_security_group]
+}
+
 # 6. Public IP Module for Virtual Machine (Inbound Internet Access)
 module "public_ip" {
   count               = var.enable_vm_public_ip ? 1 : 0
@@ -123,6 +127,7 @@ module "public_ip" {
   resource_group_name = module.resource_group.name
   domain_name_label   = var.vm_domain_name_label
   tags                = local.common_tags
+  depends_on          = [module.resource_group]
 }
 
 # 7. Network Interface Module
@@ -136,7 +141,7 @@ module "network_interface" {
   associate_with_network_security_group = true
   public_ip_address_id                  = var.enable_vm_public_ip ? module.public_ip[0].id : null
   tags                                  = local.common_tags
-
+  depends_on                            = [module.subnet, module.network_security_group, module.public_ip]
 }
 
 # 8. Virtual Machine Module
@@ -155,4 +160,6 @@ module "virtual_machine" {
   network_interface_ids = [module.network_interface.id]
   custom_data           = local.cloud_init_content != null ? base64encode(local.cloud_init_content) : null
   tags                  = local.common_tags
+  depends_on            = [module.network_interface]
 }
+
