@@ -37,8 +37,9 @@ variable "subnet_address_prefixes" {
 variable "vm_size" {
   description = "Virtual Machine SKU / size"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B2as_v2"
 }
+
 
 variable "admin_username" {
   description = "Admin username for the Virtual Machine"

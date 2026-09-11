@@ -24,7 +24,8 @@ This project provisions the following Azure resources in a modular parent-child 
    - Private IP assigned from the subnet and attached to the VM Public IP.
    - Tied to the Network Security Group.
 8. **Virtual Machine (Linux) & Application Bootstrapping**:
-   - Ubuntu 22.04 LTS Gen2 instance (`Standard_B2s`).
+   - Ubuntu 22.04 LTS Gen2 instance (`Standard_B2as_v2` - 2 vCPUs, 8 GiB RAM).
+
    - SSH Key management (can auto-generate RSA key pair or accept an existing SSH public key).
    - Cloud-init script automatically boots Nginx and runs an application status dashboard listening on ports 80 & 8080, fully integrated with Azure infrastructure.
 

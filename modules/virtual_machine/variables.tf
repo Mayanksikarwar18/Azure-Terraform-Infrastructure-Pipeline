@@ -16,8 +16,9 @@ variable "resource_group_name" {
 variable "vm_size" {
   description = "The SKU / size of the Virtual Machine"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B2as_v2"
 }
+
 
 variable "admin_username" {
   description = "The admin username for the Virtual Machine"
