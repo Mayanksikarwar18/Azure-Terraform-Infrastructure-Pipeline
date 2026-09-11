@@ -37,10 +37,11 @@ variable "network_security_group_id" {
 }
 
 variable "associate_with_network_security_group" {
-  description = "Whether to associate the NIC with a Network Security Group"
+  description = "Whether to associate the NIC directly with a Network Security Group (typically unnecessary when NSG is associated at the Subnet level)"
   type        = bool
-  default     = true
+  default     = false
 }
+
 
 
 variable "public_ip_address_id" {

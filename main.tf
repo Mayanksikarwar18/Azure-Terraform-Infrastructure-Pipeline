@@ -138,12 +138,13 @@ module "network_interface" {
   location                              = module.resource_group.location
   resource_group_name                   = module.resource_group.name
   subnet_id                             = module.subnet.id
-  network_security_group_id             = module.network_security_group.id
-  associate_with_network_security_group = true
+  network_security_group_id             = null
+  associate_with_network_security_group = false
   public_ip_address_id                  = var.enable_vm_public_ip ? module.public_ip[0].id : null
   tags                                  = local.common_tags
   depends_on                            = [module.subnet, module.network_security_group, module.public_ip]
 }
+
 
 # 8. Virtual Machine Module
 module "virtual_machine" {
