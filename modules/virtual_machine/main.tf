@@ -19,6 +19,7 @@ resource "tls_private_key" "ssh" {
 }
 
 resource "azurerm_linux_virtual_machine" "vm" {
+  #checkov:skip=CKV_AZURE_50:Virtual Machine extensions are disabled
   name                            = var.name
   resource_group_name             = var.resource_group_name
   location                        = var.location
@@ -28,6 +29,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   admin_password                  = var.admin_password
   network_interface_ids           = var.network_interface_ids
   custom_data                     = var.custom_data
+  allow_extension_operations      = var.allow_extension_operations
 
   dynamic "admin_ssh_key" {
     for_each = var.admin_password == null ? [1] : []

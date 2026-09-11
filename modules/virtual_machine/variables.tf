@@ -96,3 +96,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "allow_extension_operations" {
+  description = "Should extension operations be allowed on this Virtual Machine"
+  type        = bool
+  default     = false
+}
