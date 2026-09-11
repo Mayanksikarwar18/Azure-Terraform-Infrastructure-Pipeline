@@ -14,12 +14,12 @@ output "admin_username" {
 }
 
 output "tls_private_key_pem" {
-  description = "The generated private key (if SSH key was auto-generated)"
-  value       = length(tls_private_key.ssh) > 0 ? tls_private_key.ssh[0].private_key_pem : null
+  description = "The generated private key (deprecated, password auth used)"
+  value       = null
   sensitive   = true
 }
 
 output "tls_public_key_openssh" {
-  description = "The generated public key (if SSH key was auto-generated)"
-  value       = length(tls_private_key.ssh) > 0 ? tls_private_key.ssh[0].public_key_openssh : null
+  description = "The generated public key (deprecated, password auth used)"
+  value       = null
 }

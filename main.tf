@@ -144,7 +144,6 @@ module "virtual_machine" {
   vm_size               = var.vm_size
   admin_username        = var.admin_username
   admin_password        = var.admin_password
-  ssh_public_key        = var.ssh_public_key
   network_interface_ids = [module.network_interface.id]
   custom_data           = local.cloud_init_content != null ? base64encode(local.cloud_init_content) : null
   tags                  = local.common_tags

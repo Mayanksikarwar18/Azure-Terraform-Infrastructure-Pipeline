@@ -47,9 +47,9 @@ variable "admin_username" {
 }
 
 variable "admin_password" {
-  description = "Optional admin password for the VM. If null, SSH key authentication is used."
+  description = "Admin password for the Virtual Machine"
   type        = string
-  default     = null
+  default     = "AzureAdmin12345!"
   sensitive   = true
 }
 
