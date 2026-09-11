@@ -25,6 +25,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -39,7 +44,11 @@ jobs:
             -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER_NAME }}" \
-            -backend-config="key=terraform.tfstate"
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+            -backend-config="client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+            -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -backend-config="tenant_id=${{ secrets.AZURE_TENANT_ID }}"
 
       - name: Terraform Validate
         run: terraform validate
