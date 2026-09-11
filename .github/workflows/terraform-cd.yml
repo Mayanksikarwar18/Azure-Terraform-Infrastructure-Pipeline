@@ -1,9 +1,14 @@
 name: "Terraform CD (Apply Infrastructure)"
 
 on:
-  push:
+  # Triggers automatically after CI successfully completes on main
+  workflow_run:
+    workflows: ["Terraform CI (Validate & Plan)"]
     branches:
       - main
+    types:
+      - completed
+  # Manual trigger option
   workflow_dispatch:
     inputs:
       action:
@@ -23,6 +28,8 @@ jobs:
   terraform-cd:
     name: "Deploy from Artifact"
     runs-on: ubuntu-latest
+    # Only run if manual trigger OR if the upstream CI run on main succeeded
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     # Service Principal Authentication using Client ID & Client Secret (No OIDC)
     env:
@@ -45,43 +52,42 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      # 2. Download and Restore Plan Artifact from CI
+      # 2. Download and Restore Plan Artifact from upstream CI run
       - name: Retrieve Plan Artifact from CI
         id: retrieve-plan
-        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply') }}
-        run: |
-          echo "Finding the latest successful CI run containing the tfplan artifact..."
-          CI_RUN_ID=$(gh run list --workflow "Terraform CI (Validate & Plan)" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-          if [ -n "$CI_RUN_ID" ]; then
-            echo "Attempting download from CI Run ID: $CI_RUN_ID"
-            if gh run download "$CI_RUN_ID" --name tfplan --dir .; then
-              echo "Plan artifact successfully downloaded from CI."
-              echo "HAS_PLAN=true" >> $GITHUB_ENV
-            else
-              echo "Could not download artifact from Run ID $CI_RUN_ID."
-              echo "HAS_PLAN=false" >> $GITHUB_ENV
-            fi
+      # 3. Verify Artifact Availability
+      - name: Check Artifact Status
+        run: |
+          if [ -f "tfplan" ]; then
+            echo "tfplan artifact found and restored from CI."
+            echo "HAS_PLAN=true" >> $GITHUB_ENV
           else
-            echo "No previous successful CI run found."
+            echo "tfplan file not found; will generate plan if needed."
             echo "HAS_PLAN=false" >> $GITHUB_ENV
           fi
 
-      # 3. Fallback Plan Generation (only if no artifact found)
+      # 4. Fallback Plan Generation (if no artifact found or on manual dispatch)
       - name: Generate Fallback Plan
-        if: ${{ (github.event_name == 'push' || github.event.inputs.action == 'apply') && env.HAS_PLAN != 'true' }}
+        if: ${{ (github.event_name == 'workflow_run' || github.event.inputs.action == 'apply') && env.HAS_PLAN != 'true' }}
         run: |
           echo "Generating fresh speculative plan..."
           terraform plan -out=tfplan
 
-      # 4. Terraform Apply using the Plan Artifact
+      # 5. Terraform Apply using the Plan Artifact
       - name: Terraform Apply
-        if: ${{ github.event_name == 'push' || github.event.inputs.action == 'apply' }}
+        if: ${{ github.event_name == 'workflow_run' || github.event.inputs.action == 'apply' }}
         run: |
-          echo "Applying infrastructure using tfplan artifact..."
+          echo "Applying infrastructure using tfplan..."
           terraform apply -auto-approve tfplan
 
-      # 5. Manual Infrastructure Destruction (workflow_dispatch only)
+      # 6. Manual Infrastructure Destruction (workflow_dispatch only)
       - name: Terraform Destroy
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy' }}
         run: terraform destroy -auto-approve
