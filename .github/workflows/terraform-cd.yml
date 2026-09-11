@@ -7,62 +7,86 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "Action to perform (plan / apply / destroy)"
+        description: "Action to perform (apply / destroy)"
         required: true
         default: "apply"
         type: choice
         options:
           - apply
-          - plan
           - destroy
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  terraform:
-    name: "Terraform Execution"
+  terraform-cd:
+    name: "Deploy from Artifact"
     runs-on: ubuntu-latest
+
+    # Service Principal Authentication using Client ID & Client Secret (No OIDC)
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.5"
 
+      # 1. Initialize Terraform with Azure Remote State Backend
       - name: Terraform Init
         run: |
           terraform init \
             -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER_NAME }}" \
-            -backend-config="key=terraform.tfstate" \
-            -backend-config="client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-            -backend-config="client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-            -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -backend-config="tenant_id=${{ secrets.AZURE_TENANT_ID }}"
+            -backend-config="key=terraform.tfstate"
 
-      - name: Terraform Plan
-        if: ${{ github.event_name == 'push' || github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply' }}
-        run: terraform plan -out=tfplan
+      # 2. Download and Restore Plan Artifact from CI
+      - name: Retrieve Plan Artifact from CI
+        id: retrieve-plan
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply') }}
+        run: |
+          echo "Finding the latest successful CI run containing the tfplan artifact..."
+          CI_RUN_ID=$(gh run list --workflow "Terraform CI (Validate & Plan)" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
 
+          if [ -n "$CI_RUN_ID" ]; then
+            echo "Attempting download from CI Run ID: $CI_RUN_ID"
+            if gh run download "$CI_RUN_ID" --name tfplan --dir .; then
+              echo "Plan artifact successfully downloaded from CI."
+              echo "HAS_PLAN=true" >> $GITHUB_ENV
+            else
+              echo "Could not download artifact from Run ID $CI_RUN_ID."
+              echo "HAS_PLAN=false" >> $GITHUB_ENV
+            fi
+          else
+            echo "No previous successful CI run found."
+            echo "HAS_PLAN=false" >> $GITHUB_ENV
+          fi
+
+      # 3. Fallback Plan Generation (only if no artifact found)
+      - name: Generate Fallback Plan
+        if: ${{ (github.event_name == 'push' || github.event.inputs.action == 'apply') && env.HAS_PLAN != 'true' }}
+        run: |
+          echo "Generating fresh speculative plan..."
+          terraform plan -out=tfplan
+
+      # 4. Terraform Apply using the Plan Artifact
       - name: Terraform Apply
         if: ${{ github.event_name == 'push' || github.event.inputs.action == 'apply' }}
-        run: terraform apply -auto-approve tfplan
+        run: |
+          echo "Applying infrastructure using tfplan artifact..."
+          terraform apply -auto-approve tfplan
 
+      # 5. Manual Infrastructure Destruction (workflow_dispatch only)
       - name: Terraform Destroy
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy' }}
         run: terraform destroy -auto-approve

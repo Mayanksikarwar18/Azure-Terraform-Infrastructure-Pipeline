@@ -1,4 +1,3 @@
-# terrform CI file 
 name: "Terraform CI (Validate & Plan)"
 
 on:
@@ -10,11 +9,14 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
-  terraform:
-    name: "Terraform Lint, Validate & Plan"
+  terraform-ci:
+    name: "Scan, Format, Validate & Plan"
     runs-on: ubuntu-latest
+
+    # Service Principal Authentication using Client ID & Client Secret (No OIDC)
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
@@ -24,35 +26,163 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
         with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+          fetch-depth: 0
 
+      # =========================================================================
+      # 1. SECRET & SECURITY SCANNING (TruffleHog, tfsec, Checkov)
+      # =========================================================================
+
+      # A. TruffleHog: Scans git history for committed secrets & keys
+      - name: Secret Scanning (TruffleHog)
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+      # B. tfsec: Fast static analysis for Terraform secrets & security flaws
+      - name: Security & Secret Scan (tfsec)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: .
+          soft_fail: false
+
+      # C. Checkov: Comprehensive IaC policy, misconfiguration & secret scanner
+      - name: IaC & Secret Scan (Checkov)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform,secrets
+          output_format: cli
+          soft_fail: false
+
+      # =========================================================================
+      # 2. FORMATTING & LINTING (terraform fmt, TFLint)
+      # =========================================================================
+
+      # Setup Terraform CLI
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.5"
 
+      # Terraform native format check
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
+      # Setup TFLint
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      # Init TFLint plugins/config
+      - name: Init TFLint
+        run: tflint --init
+
+      # Run TFLint recursively across all modules
+      - name: Run TFLint
+        run: tflint -f compact --recursive
+
+      # =========================================================================
+      # 3. VALIDATION & SPECULATIVE PLAN
+      # =========================================================================
+
+      # Terraform Init with Remote State Backend
       - name: Terraform Init
         run: |
           terraform init \
             -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER_NAME }}" \
-            -backend-config="key=terraform.tfstate" \
-            -backend-config="client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-            -backend-config="client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-            -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -backend-config="tenant_id=${{ secrets.AZURE_TENANT_ID }}"
+            -backend-config="key=terraform.tfstate"
 
+      # Terraform Validate
       - name: Terraform Validate
         run: terraform validate
 
+      # Terraform Plan (Generate binary plan and text summary)
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color
+        run: |
+          terraform plan -no-color -out=tfplan
+          terraform show -no-color tfplan > tfplan.txt
+
+      # =========================================================================
+      # 4. ARTIFACT STORAGE & REVIEWER SUMMARY
+      # =========================================================================
+
+      # Store Plan in Artifact for Review and CD Deployment
+      - name: Store Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: |
+            tfplan
+            tfplan.txt
+          retention-days: 7
+
+      # Publish Step Summary to GitHub Actions Summary Tab
+      - name: Publish Step Summary
+        run: |
+          echo "## Terraform CI Quality & Security Results :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "- **TruffleHog (Secret Scan):** Passed :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+          echo "- **tfsec (Security & Secrets):** Passed :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Checkov (IaC & Secrets):** Passed :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Terraform Format (\`fmt\`):** Passed :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+          echo "- **TFLint (Code Linting):** Passed :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Terraform Validate:** Passed :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Plan Artifact:** Saved as \`tfplan\` :package:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Speculative Plan Output" >> $GITHUB_STEP_SUMMARY
+          echo '```terraform' >> $GITHUB_STEP_SUMMARY
+          head -n 250 tfplan.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # Post Plan Comment to Pull Request for Reviewer
+      - name: Comment Plan on Pull Request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let planOutput = '';
+            try {
+              planOutput = fs.readFileSync('tfplan.txt', 'utf8');
+            } catch (err) {
+              planOutput = 'Plan output could not be read.';
+            }
+
+            const maxLen = 60000;
+            const truncatedPlan = planOutput.length > maxLen
+              ? planOutput.substring(0, maxLen) + '\n...[Output truncated due to character limit]'
+              : planOutput;
+
+            const body = `### Terraform CI Quality & Speculative Plan Checks 🛡️
+
+| Tool | Category | Status |
+| :--- | :--- | :---: |
+| 🔒 **TruffleHog** | Secret Scan | ✅ Passed |
+| 🛡️ **tfsec** | Security & Secret Scan | ✅ Passed |
+| 🔍 **Checkov** | IaC Security & Secret Scan | ✅ Passed |
+| 🖌️ **terraform fmt** | Code Formatting | ✅ Passed |
+| 📐 **TFLint** | Linter & Best Practices | ✅ Passed |
+| ⚙️ **terraform validate** | Syntax Validation | ✅ Passed |
+| 📦 **Plan Artifact** | Storage | ✅ Stored (\`tfplan\`) |
+
+<details>
+<summary>📋 Click to view Terraform Plan Details</summary>
+
+\`\`\`terraform
+${truncatedPlan}
+\`\`\`
+
+</details>
+
+*Automated check by CI workflow for commit \`${context.sha.substring(0, 7)}\`.*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
