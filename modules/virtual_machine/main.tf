@@ -32,7 +32,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   allow_extension_operations      = var.allow_extension_operations
 
   dynamic "admin_ssh_key" {
-    for_each = var.admin_password == null ? [1] : []
+    for_each = var.admin_password == null ? [var.admin_username] : []
     content {
       username   = var.admin_username
       public_key = var.ssh_public_key != null ? var.ssh_public_key : tls_private_key.ssh[0].public_key_openssh
